@@ -1,6 +1,7 @@
 import { prisma } from '../src/db/prisma';
 import { redisClient } from '../src/queue/emailQueue';
 import { emailWorker } from '../src/queue/emailWorker';
+import { DelayedError } from 'bullmq';
 import { sendEmail } from '../src/utils/mailer';
 
 // Mock dependencies
@@ -45,7 +46,7 @@ describe('Email Worker Logic', () => {
       token: 'token',
     } as any;
 
-    await expect(emailWorker.processFn(jobMock)).resolves.toBeUndefined();
+    await expect((emailWorker as any).processFn(jobMock)).resolves.toBeUndefined();
 
     // Verify it did not fetch job details or send email
     expect(prisma.emailJob.findUnique).not.toHaveBeenCalled();
@@ -75,14 +76,17 @@ describe('Email Worker Logic', () => {
       token: 'token',
     } as any;
 
-    // The worker is designed to throw an error to fail the attempt when manually delayed
-    await expect(emailWorker.processFn(jobMock)).rejects.toThrow('DELAYED_HOURLY_LIMIT');
+    // The worker is designed to throw DelayedError to fail the attempt when manually delayed
+    await expect((emailWorker as any).processFn(jobMock)).rejects.toThrow(DelayedError);
 
-    // Verify job was set back to PENDING
-    expect(prisma.emailJob.update).toHaveBeenCalledWith({
+    // Verify job was set back to PENDING and scheduledAt was updated
+    expect(prisma.emailJob.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: '1' },
-      data: { status: 'PENDING' },
-    });
+      data: expect.objectContaining({ 
+        status: 'PENDING',
+        scheduledAt: expect.any(Date)
+      }),
+    }));
 
     // Verify job was moved to delayed
     expect(jobMock.moveToDelayed).toHaveBeenCalled();

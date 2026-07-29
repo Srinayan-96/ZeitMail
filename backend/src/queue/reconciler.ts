@@ -7,7 +7,7 @@ export const runReconciliation = async () => {
   try {
     const pendingJobs = await prisma.emailJob.findMany({
       where: {
-        status: 'PENDING',
+        status: { in: ['PENDING', 'PROCESSING'] },
       },
     });
 
@@ -31,10 +31,18 @@ export const runReconciliation = async () => {
 
     for (const job of pendingJobs) {
       if (!queuedJobIds.has(job.id)) {
-        // Job is in DB as PENDING but not in Redis queue. Re-enqueue it.
+        // Job is in DB but not in Redis queue. Re-enqueue it.
         const now = new Date().getTime();
         const scheduledTime = job.scheduledAt.getTime();
         const delay = Math.max(0, scheduledTime - now);
+        
+        // If it was stuck in PROCESSING, reset to PENDING
+        if (job.status === 'PROCESSING') {
+          await prisma.emailJob.update({
+            where: { id: job.id },
+            data: { status: 'PENDING' }
+          });
+        }
 
         await emailQueue.add(
           'send-email',

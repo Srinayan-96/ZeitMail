@@ -1,4 +1,4 @@
-import { Worker, Job } from 'bullmq';
+import { Worker, Job, DelayedError } from 'bullmq';
 import { prisma } from '../db/prisma';
 import { sendEmail } from '../utils/mailer';
 import { connection } from './emailQueue';
@@ -62,25 +62,24 @@ export const emailWorker = new Worker(
         }
 
         if (count > hourlyLimit) {
-          // Revert processing status back to PENDING so it can be picked up again safely
-          await prisma.emailJob.update({
-            where: { id: jobId },
-            data: { status: 'PENDING' },
-          });
-
-          // Delay to the next hour
+          // Calculate delay to the next hour
           const nextHour = new Date(currentHour);
           nextHour.setHours(nextHour.getHours() + 1);
           const delayMs = nextHour.getTime() - new Date().getTime();
+
+          // Revert processing status back to PENDING and update scheduledAt so the UI knows it was delayed!
+          await prisma.emailJob.update({
+            where: { id: jobId },
+            data: { 
+              status: 'PENDING',
+              scheduledAt: new Date(Date.now() + delayMs)
+            },
+          });
+
           console.log(`Hourly limit reached for sender ${sender.email}. Delaying job ${jobId} by ${delayMs}ms.`);
           
           await job.moveToDelayed(Date.now() + delayMs, job.token!);
-          // Throwing an error stops execution for this attempt. BullMQ handles moveToDelayed properly when we do it manually, but returning is safer.
-          // Wait, moveToDelayed throws if successful (DelayedError in BullMQ Pro), or we can just return and handle it.
-          // In free BullMQ, if we use moveToDelayed, we should throw a special error or just let it finish. 
-          // Since we manually moved it, we can just throw to fail this active attempt, but moveToDelayed usually throws `DelayedError`.
-          // Let's just throw to ensure the worker knows it didn't complete successfully, but we want it delayed, not failed.
-          throw new Error('DELAYED_HOURLY_LIMIT'); 
+          throw new DelayedError();
         }
       }
 
@@ -108,9 +107,9 @@ export const emailWorker = new Worker(
       }
 
     } catch (error: any) {
-      if (error.message === 'DELAYED_HOURLY_LIMIT') {
-         // It's handled
-         return;
+      if (error instanceof DelayedError) {
+         // BullMQ handles this gracefully, let it bubble up
+         throw error;
       }
       
       // Update Status to FAILED
@@ -131,9 +130,7 @@ export const emailWorker = new Worker(
 );
 
 emailWorker.on('failed', (job, err) => {
-  if (err.message !== 'DELAYED_HOURLY_LIMIT') {
-    console.error(`Job ${job?.id} failed with error: ${err.message}`);
-  }
+  console.error(`Job ${job?.id} failed with error: ${err.message}`);
 });
 
 emailWorker.on('completed', (job) => {
