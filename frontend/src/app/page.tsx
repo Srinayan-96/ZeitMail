@@ -21,6 +21,7 @@ export default function Home() {
   const [scheduledJobs, setScheduledJobs] = useState<EmailJob[]>([]);
   const [sentJobs, setSentJobs] = useState<EmailJob[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -84,13 +85,22 @@ export default function Home() {
         {jobs.map((job) => (
           <div key={job.id} className="flex items-center justify-between p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors">
             <div className="flex items-center gap-6 flex-1">
-              <span className="font-medium text-gray-900 min-w-[200px]">To: {job.recipientEmail.split('@')[0]}</span>
+              <span className="font-medium text-gray-900 min-w-[200px]">To: {job.recipientEmail}</span>
               <div className="flex items-center gap-2 text-sm text-gray-500 truncate flex-1">
-                <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-xs font-medium border border-orange-200 flex-shrink-0">
+                <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-medium border border-gray-200 flex-shrink-0">
                   {new Date(isSent ? job.sentAt! : job.scheduledAt).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: true })}
                 </span>
-                <span className="font-medium text-gray-900">{job.campaign?.subject}</span> - <span className="truncate">Scheduled email content...</span>
+                <span className="font-medium text-gray-900">{job.campaign?.subject}</span>
               </div>
+            </div>
+            <div>
+              <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${
+                job.status === 'SENT' ? 'bg-green-100 text-green-700' :
+                job.status === 'FAILED' ? 'bg-red-100 text-red-700' :
+                'bg-blue-100 text-blue-700'
+              }`}>
+                {job.status}
+              </span>
             </div>
           </div>
         ))}
@@ -143,13 +153,17 @@ export default function Home() {
               <div className="relative w-full max-w-md">
                 <input 
                   type="text" 
-                  placeholder="Search" 
+                  placeholder="Search emails or subjects..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500"
                 />
                 <span className="absolute left-3 top-2.5 text-gray-400">🔍</span>
               </div>
             </div>
-            {activeTab === 'scheduled' ? renderTable(scheduledJobs, false) : renderTable(sentJobs, true)}
+            {activeTab === 'scheduled' 
+              ? renderTable(scheduledJobs.filter(j => j.recipientEmail.toLowerCase().includes(searchQuery.toLowerCase()) || j.campaign?.subject.toLowerCase().includes(searchQuery.toLowerCase())), false) 
+              : renderTable(sentJobs.filter(j => j.recipientEmail.toLowerCase().includes(searchQuery.toLowerCase()) || j.campaign?.subject.toLowerCase().includes(searchQuery.toLowerCase())), true)}
           </div>
         </main>
       </div>
