@@ -43,7 +43,8 @@ export default function ComposePage() {
     formData.append("senderId", "sender-uuid-placeholder"); 
 
     try {
-      const res = await fetch("http://localhost:5000/api/emails/schedule", {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const res = await fetch(`${apiUrl}/emails/schedule`, {
         method: "POST",
         body: formData,
       });
