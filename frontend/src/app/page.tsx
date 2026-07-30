@@ -89,7 +89,7 @@ export default function Home() {
               <span className="font-medium text-gray-900 min-w-[200px]">To: {job.recipientEmail}</span>
               <div className="flex items-center gap-2 text-sm text-gray-500 truncate flex-1">
                 <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-medium border border-gray-200 flex-shrink-0">
-                  {new Date(isSent ? job.sentAt! : job.scheduledAt).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: true })}
+                  {new Date((isSent && job.sentAt) ? job.sentAt : job.scheduledAt).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: true })}
                 </span>
                 <span className="font-medium text-gray-900">{job.campaign?.subject}</span>
               </div>
