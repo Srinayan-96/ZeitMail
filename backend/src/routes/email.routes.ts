@@ -106,7 +106,7 @@ router.post('/schedule', upload.single('csv'), async (req, res) => {
 router.get('/scheduled', async (req, res) => {
   try {
     const jobs = await prisma.emailJob.findMany({
-      where: { status: 'PENDING' },
+      where: { status: { in: ['PENDING', 'PROCESSING'] } },
       include: { campaign: { select: { subject: true } } },
       orderBy: { scheduledAt: 'asc' },
     });
