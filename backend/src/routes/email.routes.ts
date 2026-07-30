@@ -129,4 +129,20 @@ router.get('/sent', async (req, res) => {
   }
 });
 
+// TEMPORARY HIDDEN ENDPOINT TO WIPE ALL LIVE DATA
+router.get('/danger-wipe', async (req, res) => {
+  try {
+    // Delete all jobs and campaigns from Postgres
+    await prisma.emailJob.deleteMany({});
+    await prisma.campaign.deleteMany({});
+    
+    // Wipe all Redis queues
+    await emailQueue.obliterate({ force: true });
+    
+    res.json({ message: "SUCCESS! All jobs, campaigns, and queues have been completely wiped!" });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to wipe data', details: String(error) });
+  }
+});
+
 export default router;
