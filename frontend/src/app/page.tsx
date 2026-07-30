@@ -36,8 +36,8 @@ export default function Home() {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
       const [scheduledRes, sentRes] = await Promise.all([
-        fetch(`${apiUrl}/emails/scheduled`),
-        fetch(`${apiUrl}/emails/sent`)
+        fetch(`${apiUrl}/emails/scheduled?t=${Date.now()}`),
+        fetch(`${apiUrl}/emails/sent?t=${Date.now()}`)
       ]);
       if (scheduledRes.ok) setScheduledJobs(await scheduledRes.json());
       if (sentRes.ok) setSentJobs(await sentRes.json());
