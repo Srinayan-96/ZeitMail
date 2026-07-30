@@ -36,7 +36,8 @@ export default function ComposePage() {
     formData.append("csv", file);
     formData.append("subject", subject);
     formData.append("body", body);
-    formData.append("startTime", scheduleTime);
+    const localDate = new Date(scheduleTime);
+    formData.append("startTime", localDate.toISOString());
     formData.append("delayBetweenEmails", delay);
     formData.append("hourlyLimit", hourlyLimit);
     // TODO: Fetch senderId dynamically from selected sender in UI
